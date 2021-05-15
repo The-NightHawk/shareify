@@ -2,20 +2,37 @@ import discord
 from discord import guild
 from discord.ext import commands
 import json
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 prefixes = ['!']
-token = '{insertYourToken}'
+token = os.getenv('SHARE_TOKEN')
 
-client = commands.Bot(command_prefix=prefixes, Intents=discord.Intents.all)
+client = commands.Bot(command_prefix=prefixes, case_insensitive=True, Intents=discord.Intents.all)
 
 @client.event
 async def on_ready():
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="!help"))
     print("Shareify is ready!")
 
 @client.event
 async def on_message(message):
-    message.content = message.content.replace("\'", "\\'").replace('\"', '\\"')
+    message.content = message.content.replace("\'", "\\'").replace("\"", "\\\"")
     await client.process_commands(message)
+
+client.remove_command('help')
+@client.command()
+async def help(ctx: commands.context):
+    embed=discord.Embed(title="Shareify Help", description="Use `!channel` to set a sharing channel, and `!share` to share your creations!", color=0x7289da)
+    embed.add_field(name='\u200b', value='\u200b', inline=False)
+    embed.add_field(name="!share", value="Use `!share <message>` to share a message to the sharing channel.", inline=True)
+    embed.add_field(name="!channel", value="Use `!channel <#channel>` to set a sharing channel", inline=True)
+    embed.add_field(name='\u200b', value='\u200b', inline=False)
+    embed.add_field(name="!help", value="Shows this message", inline=True)
+    embed.add_field(name="!ping", value="Checks the bot's latency", inline=True)
+    await ctx.send(embed=embed)
 
 @client.command()
 async def share(ctx: commands.context, *args):
@@ -41,7 +58,6 @@ async def share(ctx: commands.context, *args):
         attachment = await ctx.message.attachments[0].to_file()
         await channel.send(share_message, file=attachment)
 
-
 @client.command()
 async def channel(ctx: commands.context, channel: discord.TextChannel):
     if not ctx.message.author.guild_permissions.manage_channels:
@@ -62,5 +78,9 @@ async def channel(ctx: commands.context, channel: discord.TextChannel):
         f.write(json.dumps(config, indent=4))
     await ctx.send(f"Sharing channel has been set to: {channel.mention}")
     return
-    
+
+@client.command()
+async def ping(ctx):
+    await ctx.send(f"Pong! in {round(client.latency * 1000)}ms")
+
 client.run(token)
